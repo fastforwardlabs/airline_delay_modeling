@@ -5,13 +5,18 @@ library(dplyr)
 spark_home_set("/etc/spark/")
 config <- spark_config()
 config$spark.hadoop.fs.s3a.aws.credentials.provider  <- "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider"
+config$spark.executor.memory <- "16g"
+config$spark.executor.cores <- "4"
+config$spark.driver.memory <- "6g"
+config$spark.executor.instances <- "5"
+config$spark.dynamicAllocation.enabled  <- "false"
 
 sc <- spark_connect(master = "yarn-client", config=config)
 
 ## Read in the flight data from S3
 
 s3_link_all <-
-  "s3a://ml-field/demo/flight-analysis/data/airlines_csv/2009.csv"
+  "s3a://ml-field/demo/flight-analysis/data/airlines_csv/2010.csv"
 
 
 cols = list(
