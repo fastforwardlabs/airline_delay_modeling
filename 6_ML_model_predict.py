@@ -7,8 +7,10 @@ from pyspark.ml import PipelineModel
 spark = SparkSession.builder \
       .appName("Flight Predictor") \
       .master("local[*]") \
+      .config("spark.driver.memory","4g")\
       .config("spark.hadoop.fs.s3a.aws.credentials.provider","org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider")\
-      .config("spark.driver.memory","4g")\ 
+      .config("spark.hadoop.fs.s3a.metadatastore.impl","org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore")\
+      .config("spark.hadoop.fs.s3a.delegation.token.binding","")\
       .getOrCreate()
   
 model = PipelineModel.load("s3a://ml-field/demo/flight-analysis/data/models/lr_model") 
