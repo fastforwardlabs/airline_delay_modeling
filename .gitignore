@@ -1,5 +1,5 @@
 R/*
 metastore_db/*
-.Rprofile
+.*
 !.gitignore
 derby.log

@@ -4,9 +4,16 @@ import os
 spark = SparkSession\
     .builder\
     .appName("Airline")\
-    .config("spark.hadoop.fs.s3a.access.key",os.getenv("AWS_ACCESS_KEY"))\
-    .config("spark.hadoop.fs.s3a.secret.key",os.getenv("AWS_SECRET_KEY"))\
+    .config("spark.hadoop.fs.s3a.aws.credentials.provider","org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider")\
+    .config("spark.executor.memory","16g")\
+    .config("spark.executor.cores","4")\
+    .config("spark.driver.memory","6g")\
+    .config("spark.executor.instances","5")\
+    .config("spark.dynamicAllocation.enabled","false")\
     .getOrCreate()
+#    .config("spark.hadoop.fs.s3a.access.key",os.getenv("AWS_ACCESS_KEY"))\
+#    .config("spark.hadoop.fs.s3a.secret.key",os.getenv("AWS_SECRET_KEY"))\
+#    .getOrCreate()
 
 from pyspark.sql.types import *
 
@@ -53,4 +60,6 @@ df.select("CRS_DEP_TIME").withColumn('pad_time', udf1("CRS_DEP_TIME")).show()
 
 smaller_data_set = df.select("FL_DATE","OP_CARRIER","OP_CARRIER_FL_NUM","ORIGIN","DEST","CRS_DEP_TIME","CRS_ARR_TIME","CANCELLED","CRS_ELAPSED_TIME","DISTANCE")
 
-smaller_data_set.write.parquet(path="s3a://ml-field/demo/flight-analysis/data/airline_parquet_2/",compression="snappy")
+smaller_data_set.show()
+
+#smaller_data_set.write.parquet(path="s3a://ml-field/demo/flight-analysis/data/airline_parquet_2/",compression="snappy")

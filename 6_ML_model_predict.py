@@ -8,7 +8,7 @@ spark = SparkSession.builder \
       .appName("Flight Predictor") \
       .master("local[*]") \
       .config("spark.hadoop.fs.s3a.aws.credentials.provider","org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider")\
-      .config("spark.driver.memory","4g")\
+      .config("spark.driver.memory","4g")\ 
       .getOrCreate()
   
 model = PipelineModel.load("s3a://ml-field/demo/flight-analysis/data/models/lr_model") 

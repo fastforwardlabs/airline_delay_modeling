@@ -3,15 +3,21 @@ from pyspark.sql import SparkSession
 spark = SparkSession\
     .builder\
     .appName("Airline ML")\
-    .config("spark.hadoop.fs.s3a.access.key",os.getenv("AWS_ACCESS_KEY"))\
-    .config("spark.hadoop.fs.s3a.secret.key",os.getenv("AWS_SECRET_KEY"))\
+    .config("spark.hadoop.fs.s3a.aws.credentials.provider","org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider")\
+    .config("spark.executor.memory","16g")\
+    .config("spark.executor.cores","4")\
+    .config("spark.driver.memory","6g")\
+    .config("spark.executor.instances","5")\
     .getOrCreate()
+#    .config("spark.hadoop.fs.s3a.access.key",os.getenv("AWS_ACCESS_KEY"))\
+#    .config("spark.hadoop.fs.s3a.secret.key",os.getenv("AWS_SECRET_KEY"))\
 
+    
 flight_df=spark.read.parquet(
   "s3a://ml-field/demo/flight-analysis/data/airline_parquet_2/",
 )
 
-flight_df = flight_df.na.drop().limit(100000) #this limit is here for the demo
+flight_df = flight_df.na.drop() #.limit(1000000) #this limit is here for the demo
 
 from pyspark.sql.types import StringType
 from pyspark.sql.functions import udf,substring
@@ -53,7 +59,7 @@ from pyspark.ml import Pipeline
 
 
 from pyspark.ml.classification import LogisticRegression
-lr = LogisticRegression(featuresCol = 'features', labelCol = 'CANCELLED', maxIter=10)
+lr = LogisticRegression(featuresCol = 'features', labelCol = 'CANCELLED', maxIter=100)
 
 pipeline = Pipeline(stages=[op_carrier_indexer, 
                             op_carrier_encoder, 
