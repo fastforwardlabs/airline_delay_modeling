@@ -1,4 +1,4 @@
-## Load libraries
+### Load libraries
 library(ggplot2)
 library(maps)
 library(geosphere)
@@ -17,10 +17,9 @@ config$spark.executor.cores <- "4"
 config$spark.driver.memory <- "6g"
 config$spark.executor.instances <- "5"
 config$spark.dynamicAllocation.enabled  <- "false"
-config$spark.hadoop.fs.s3a.metadatastore.impl <- "org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore"
-config$spark.hadoop.fs.s3a.delegation.token.binding <- ""
-config$spark.sql.catalogImplementation <- "in-memory"
-config$spark.yarn.access.hadoopFileSystems <- "s3a://ml-field/demo/flight-analysis/"
+#config$spark.hadoop.fs.s3a.metadatastore.impl <- "org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore"
+#config$spark.sql.catalogImplementation <- "in-memory"
+#config$spark.yarn.access.hadoopFileSystems <- "s3a://ml-field/demo/flight-analysis/"
 
 sc <- spark_connect(master = "yarn-client", config=config)
 
