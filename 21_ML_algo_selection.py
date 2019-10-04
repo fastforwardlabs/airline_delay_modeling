@@ -15,15 +15,18 @@ spark = SparkSession\
     .config("spark.hadoop.fs.s3a.delegation.token.binding","")\
     .getOrCreate()
 
-    
+# Read the data into Spark
 flight_df=spark.read.parquet(
   "s3a://ml-field/demo/flight-analysis/data/airline_parquet_2/",
 )
 
-flight_df = flight_df.na.drop().sample(False, 0.0005) #this limit is here for the demo
+# Pull a sample of the dataset into an in-memory
+# Pandas dataframe
+flight_df_sampled = flight_df.na.drop().sample(False, 0.00005) #this limit is here for the demo
+flight_df_local = flight_df_sampled.toPandas()
 
-flight_df_local = flight_df.toPandas()
-
+# Put the data into the array format required by tpot.
+# Use one-hot encoding for the categorical variables
 tpot_X = np.vstack([
   np.asarray(pd.get_dummies(flight_df_local["OP_CARRIER"])).transpose(),
   np.asarray(pd.get_dummies(flight_df_local["ORIGIN"])).transpose(),
@@ -31,12 +34,14 @@ tpot_X = np.vstack([
   np.asarray([flight_df_local["DISTANCE"]]),
   np.asarray([flight_df_local["CRS_DEP_TIME"]]).astype('float').astype('int')
 ]).transpose()
-
 tpot_y = flight_df_local["CANCELLED"].astype("bool")
 
+# Use tpot to select and tune a prediction algorithm
 from tpot import TPOTClassifier
 
 tpot = TPOTClassifier(generations=5, population_size=20, verbosity=2)
 classifier = tpot.fit(tpot_X, tpot_y)
 
+# Export the best performing algorithm and parameter set
+# to Python code
 classifier.export('exported_classifier.py')
