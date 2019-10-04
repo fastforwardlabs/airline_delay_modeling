@@ -13,7 +13,7 @@ if ( not os.path.exists('/etc/hadoop/conf/hive-site.xml')):
   !cp /home/cdsw/utils/hive-site.xml /etc/hadoop/conf/
 
 #Data taken from http://stat-computing.org/dataexpo/2009/the-data.html
-#!for i in `seq 1987 2008`; do wget http://stat-computing.org/dataexpo/2009/$i.csv.bz2; bunzip2 $i.csv.bz2; aws s3 cp $i.csv s3://ml-field/demo/flight-analysis/data/flights_csv/; rm $i.csv; done
+#!for i in `seq 1987 2008`; do wget http://stat-computing.org/dataexpo/2009/$i.csv.bz2; bunzip2 $i.csv.bz2; sed -i '1d' $i.csv; aws s3 cp $i.csv s3://ml-field/demo/flight-analysis/data/flights_csv/; rm $i.csv; done
 
 
 from __future__ import print_function
