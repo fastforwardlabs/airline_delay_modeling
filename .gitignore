@@ -3,3 +3,4 @@ metastore_db/*
 .*
 !.gitignore
 derby.log
+exported_classifier.py
