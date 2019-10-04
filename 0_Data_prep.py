@@ -73,7 +73,7 @@ LOCATION 's3a://ml-field/demo/flight-analysis/data/flights_csv/'
 '''
 #spark.sql(statement) 
 spark.sql("SELECT COUNT(*) FROM `default`.`flights`").show()
-spark.sql("SELECT * FROM `default`.`flights` LIMIT 10").show()
+spark.sql("SELECT * FROM `default`.`flights` LIMIT 10").take(5)
 
 #spark.sql("DROP TABLE airports").show()
 statement = '''
