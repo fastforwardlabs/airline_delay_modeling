@@ -1,4 +1,4 @@
-!pip3 install tpot xgboost
+#!pip3 install tpot xgboost
 
 #NOTE: In CDP find the HMS warehouse directory and external table directory by browsing to:
 # Environment -> <env name> ->  Data Lake Cluster -> Cloud Storage
@@ -33,11 +33,8 @@ spark.sql("DESCRIBE flights").show()
 #flight_df=spark.read.parquet("s3a://ml-field/demo/flight-analysis/data/airline_parquet_2/",)
 
 # Pull a sample of the dataset into an in-memory
-# Pandas dataframe
-#flight_df_sampled = flight_df.na.drop().sample(False, 0.00005) #this limit is here for the demo
-#flight_df_local = flight_df_sampled.toPandas()
-
-flight_df_local = spark.sql("SELECT * FROM `default`.`flights`").sample(.00004).toPandas()
+# Pandas dataframe. Use a smaller dataset for a quick demo.
+flight_df_local = spark.sql("SELECT * FROM `default`.`flights`").limit(5000).toPandas()
 
 # Put the data into the array format required by tpot.
 # Use one-hot encoding for the categorical variables
@@ -48,12 +45,13 @@ tpot_X = np.vstack([
   np.asarray([flight_df_local["Distance"]]),
   np.asarray([flight_df_local["CRSDepTime"]]).astype('float').astype('int')
 ]).transpose()
-tpot_y = flight_df_local["Cancelled"].astype("bool")
+tpot_y = (flight_df_local["DepDelay"] > 0).astype("bool")
 
 # Use tpot to select and tune a prediction algorithm
 from tpot import TPOTClassifier
 
-tpot = TPOTClassifier(generations=5, population_size=20, verbosity=2)
+# Choose a short run for demo purposes. TPOT should run for much longer.
+tpot = TPOTClassifier(generations=1, population_size=5, verbosity=2)
 classifier = tpot.fit(tpot_X, tpot_y)
 
 # Export the best performing algorithm and parameter set
