@@ -1,40 +1,34 @@
 # !pip3 install geopandas
 
+#Temporary workaround for MLX-975
+#In utils/hive-site.xml edit hive.metastore.warehouse.dir and hive.metastore.warehouse.external.dir based on settings in CDP Data Lake -> Cloud Storage
+if ( not os.path.exists('/etc/hadoop/conf/hive-site.xml')):
+  !cp /home/cdsw/utils/hive-site.xml /etc/hadoop/conf/
+
+#Data taken from http://stat-computing.org/dataexpo/2009/the-data.html
+#!for i in `seq 1987 2008`; do wget http://stat-computing.org/dataexpo/2009/$i.csv.bz2; bunzip2 $i.csv.bz2; sed -i '1d' $i.csv; aws s3 cp $i.csv s3://ml-field/demo/flight-analysis/data/flights_csv/; rm $i.csv; done
+
+from __future__ import print_function
+import os
+import sys
 from pyspark.sql import SparkSession
-from sklearn.model_selection import train_test_split
-import pandas as pd
-import numpy as np
+from pyspark.sql.types import Row, StructField, StructType, StringType, IntegerType
 
 spark = SparkSession\
     .builder\
-    .appName("Airline ML")\
-    .config("spark.hadoop.fs.s3a.aws.credentials.provider","org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider")\
-    .config("spark.executor.memory","16g")\
-    .config("spark.executor.cores","4")\
-    .config("spark.driver.memory","6g")\
-    .config("spark.executor.instances","5")\
-    .config("spark.hadoop.fs.s3a.metadatastore.impl","org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore")\
-    .config("spark.hadoop.fs.s3a.delegation.token.binding","")\
+    .appName("GeoAnalysis")\
+    .config("spark.executor.memory", "4g")\
+    .config("spark.executor.instances", 5)\
+    .config("spark.yarn.access.hadoopFileSystems","s3a://ml-field/demo/flight-analysis/data/")\
     .getOrCreate()
 
-# Read the data into Spark
-flight_df=spark.read.parquet(
-  "s3a://ml-field/demo/flight-analysis/data/airline_parquet_2/",
-)
+# Find the frequency of all trips (preserving direction)
+trip_frequency = spark.sql("SELECT ORIGIN, DEST, COUNT(1), ORIGIN. AS cnt FROM flights GROUP BY ORIGIN, DEST").toPandas()
 
-trip_frequencies = flight_df.groupBy("ORIGIN", "DEST").count().toPandas()
-origins = flight_df.select("ORIGIN").distinct()
-dests = flight_df.select("DEST").distinct()
-all_airports = origins.union(dests).distinct().toPandas()
+# Get the airports as a local dataframe
+airports = spark.sql("SELECT * FROM airports").toPandas()
 
-airport_codes = pd.read_csv("airport-codes.csv")
+# Do this: http://vega.github.io/vega-editor/?spec=airports with altair
 
-def loc_of_coordinates(coordinates):
-  return coordinates
-
-def loc_of_code(airport_code):
-  coords = airport_codes[airport_codes["ident"] == "K" + airport_code]["coordinates"].item()
-
-locs_dict = {}
-for airport in all_airports:
-  locs_dict[airport] = loc_of_code(airport)
+# Also have a variogram of proportion cancelled. 
+# Do it with scikit-gstat maybe: https://mmaelicke.github.io/scikit-gstat/reference/variogram.html#skgstat.Variogram
