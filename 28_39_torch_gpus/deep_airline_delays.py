@@ -1,3 +1,15 @@
+#NOTE: In CDP find the HMS warehouse directory and external table directory by browsing to:
+# Environment -> <env name> ->  Data Lake Cluster -> Cloud Storage
+# copy and paste the external location to the config setting below.
+
+#Temporary workaround for MLX-975
+#In utils/hive-site.xml edit hive.metastore.warehouse.dir and hive.metastore.warehouse.external.dir based on settings in CDP Data Lake -> Cloud Storage
+if ( not os.path.exists('/etc/hadoop/conf/hive-site.xml')):
+  !cp /home/cdsw/utils/hive-site.xml /etc/hadoop/conf/
+
+#Data taken from http://stat-computing.org/dataexpo/2009/the-data.html
+#!for i in `seq 1987 2008`; do wget http://stat-computing.org/dataexpo/2009/$i.csv.bz2; bunzip2 $i.csv.bz2; sed -i '1d' $i.csv; aws s3 cp $i.csv s3://ml-field/demo/flight-analysis/data/flights_csv/; rm $i.csv; done
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -9,14 +21,32 @@ from sklearn.preprocessing import StandardScaler
 from torch import LongTensor, Tensor
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, TensorDataset
+from pyspark.sql import SparkSession
+
+
+spark = SparkSession\
+    .builder\
+    .appName("PythonSQL")\
+    .config("spark.executor.memory", "16g")\
+    .config("spark.executor.instances", 5)\
+    .config("spark.yarn.access.hadoopFileSystems","s3a://ml-field/demo/flight-analysis/data/")\
+    .config("spark.driver.maxResultSize","16g")\
+    .getOrCreate()
+
+spark.sql("SHOW databases").show()
+spark.sql("USE default")
+spark.sql("SHOW tables").show()
+#!pip3 install pyarrow==0.15.0
+#spark.conf.set("spark.sql.execution.arrow.enabled", "true")
 
 ## Use GPU if available, otherwise fall back to CPU
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print("Using GPU" if torch.cuda.is_available() else "Using CPU")
-
+print("Using CPU" if torch.cuda.is_available() else "Using GPU")
 
 ## Load representative subset of rows from dataset
-flights = pd.read_csv("50k-flights.csv", low_memory=False)
+#flights = pd.read_csv("/home/cdsw/28_39_torch_gpus/50k-flights.csv", low_memory=False)
+flights = spark.sql("SELECT * FROM `default`.`flights`").sample(.004).toPandas()
+
 
 # Select useful features and build scale/one-hot-encode
 X = flights[['DayOfWeek', 'DayofMonth', 'Month', 'Origin', 'Dest', 'UniqueCarrier', 'CRSDepTime']].copy()
@@ -76,7 +106,7 @@ model = Net()
 loss_function = nn.NLLLoss()
 optimizer = optim.SGD(model.parameters(), lr=1e-3, momentum=0.5)
 
-for epoch in range(10):
+for epoch in range(2):
     for batch, (data, target) in enumerate(dataloader_train):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
