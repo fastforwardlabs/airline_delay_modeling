@@ -6,8 +6,9 @@
 
 #Temporary workaround for MLX-975
 #In utils/hive-site.xml edit hive.metastore.warehouse.dir and hive.metastore.warehouse.external.dir based on settings in CDP Data Lake -> Cloud Storage
+import os, shutil
 if ( not os.path.exists('/etc/hadoop/conf/hive-site.xml')):
-  !cp /home/cdsw/utils/hive-site.xml /etc/hadoop/conf/
+  shutil.copyfile("/home/cdsw/utils/hive-site.xml", "/etc/hadoop/conf/hive-site.xml")
 
 from pyspark.sql import SparkSession
 from sklearn.model_selection import train_test_split
