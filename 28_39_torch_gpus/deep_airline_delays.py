@@ -4,12 +4,14 @@
 
 #Temporary workaround for MLX-975
 #In utils/hive-site.xml edit hive.metastore.warehouse.dir and hive.metastore.warehouse.external.dir based on settings in CDP Data Lake -> Cloud Storage
+import os, shutil
 if ( not os.path.exists('/etc/hadoop/conf/hive-site.xml')):
-  !cp /home/cdsw/utils/hive-site.xml /etc/hadoop/conf/
-
+  shutil.copyfile("/home/cdsw/utils/hive-site.xml", "/etc/hadoop/conf/hive-site.xml")
+  
 #Data taken from http://stat-computing.org/dataexpo/2009/the-data.html
 #!for i in `seq 1987 2008`; do wget http://stat-computing.org/dataexpo/2009/$i.csv.bz2; bunzip2 $i.csv.bz2; sed -i '1d' $i.csv; aws s3 cp $i.csv s3://ml-field/demo/flight-analysis/data/flights_csv/; rm $i.csv; done
 
+import cdsw
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -27,17 +29,21 @@ from pyspark.sql import SparkSession
 spark = SparkSession\
     .builder\
     .appName("PythonSQL")\
-    .config("spark.executor.memory", "16g")\
+    .config("spark.executor.memory", "4g")\
     .config("spark.executor.instances", 5)\
     .config("spark.yarn.access.hadoopFileSystems","s3a://ml-field/demo/flight-analysis/data/")\
-    .config("spark.driver.maxResultSize","16g")\
+    .config("spark.driver.maxResultSize","4g")\
     .getOrCreate()
 
 spark.sql("SHOW databases").show()
 spark.sql("USE default")
 spark.sql("SHOW tables").show()
+
 #!pip3 install pyarrow==0.15.0
 #spark.conf.set("spark.sql.execution.arrow.enabled", "true")
+
+model_path = '/home/cdsw/models/'
+model_name = 'nn_model.pkl'
 
 ## Use GPU if available, otherwise fall back to CPU
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -45,7 +51,9 @@ print("Using CPU" if torch.cuda.is_available() else "Using GPU")
 
 ## Load representative subset of rows from dataset
 #flights = pd.read_csv("/home/cdsw/28_39_torch_gpus/50k-flights.csv", low_memory=False)
-flights = spark.sql("SELECT * FROM `default`.`flights`").sample(.004).toPandas()
+flights = spark.sql("SELECT * FROM `default`.`flights`").limit(500000).toPandas()
+
+a = spark.sql("SELECT * FROM `default`.`flights` WHERE CarrierDelay > 0").take(5)
 
 
 # Select useful features and build scale/one-hot-encode
@@ -104,9 +112,20 @@ train_losses = []
 test_losses = []
 model = Net()
 loss_function = nn.NLLLoss()
-optimizer = optim.SGD(model.parameters(), lr=1e-3, momentum=0.5)
 
-for epoch in range(2):
+
+#try learning rates 1e-2, 1e-3, 1e-4,1e-5 via Experiments
+if len (sys.argv) == 2:
+  if sys.argv[1].split(sep='=')[0]=='learning_rate' and isinstance(float(sys.argv[1].split(sep='=')[1]), float):
+    learning_rate = float(sys.argv[1].split(sep='=')[1])
+  else:
+    sys.exit("Invalid Arguments passed to Experiment")
+else:
+    learning_rate = 1e-3
+
+optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.5)
+
+for epoch in range(3):
     for batch, (data, target) in enumerate(dataloader_train):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
@@ -122,6 +141,7 @@ for epoch in range(2):
                 print(f"epoch  batch      loss  accuracy")
             print(f"{epoch:5d}{batch:7d}{loss.item():10.4g}{accuracy:10.4g}")
 
+            
     test_loss = 0
     with torch.no_grad():
         for test_data, test_target in dataloader_test:
@@ -133,5 +153,9 @@ for epoch in range(2):
     test_losses.append((test_loss, test_accuracy))
 
 print(f"\nFinal test set accuracy = {100*test_accuracy:.4g}%")
+cdsw.track_metric("Test Accuracy", test_accuracy*100)
 
 losscurve()
+
+torch.save(model.state_dict(), model_path+model_name)
+cdsw.track_file(model_path+model_name)
