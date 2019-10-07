@@ -22,13 +22,13 @@ import sys
 from pyspark.sql import SparkSession
 from pyspark.sql.types import Row, StructField, StructType, StringType, IntegerType
 
-
 spark = SparkSession\
     .builder\
     .appName("PythonSQL")\
-    .config("spark.executor.memory", "4g")\
+    .config("spark.executor.memory", "8g")\
     .config("spark.executor.instances", 5)\
     .config("spark.yarn.access.hadoopFileSystems","s3a://ml-field/demo/flight-analysis/data/")\
+    .config("spark.driver.maxResultSize","8g")\
     .getOrCreate()
 
 spark.sql("SHOW databases").show()
@@ -92,6 +92,38 @@ LOCATION 's3a://ml-field/demo/flight-analysis/data/airports_csv/'
 #spark.sql(statement) 
 spark.sql("SELECT COUNT(*) FROM `default`.`airports`").show()
 spark.sql("SELECT * FROM `default`.`airports` LIMIT 10").show()
+
+
+ident,type,name,elevation_ft,continent,iso_country,iso_region,municipality,gps_code,iata_code,local_code,coordinates
+
+
+#spark.sql("DROP TABLE airports_extended").show()
+statement = '''
+CREATE EXTERNAL TABLE IF NOT EXISTS `default`.`airports_extended` (
+`ident` string , 
+`type` string ,
+`name` string ,
+`elevation_ft` string ,
+`continent` string ,
+`iso_country` string ,
+`iso_region` string ,
+`municipality` string ,
+`gps_code` string ,
+`iata_code` string ,
+`local_code` string ,
+`coordinates` string )
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' 
+STORED AS TextFile 
+LOCATION 's3a://ml-field/demo/flight-analysis/data/airports-extended/'
+'''
+#spark.sql(statement) 
+spark.sql("SELECT COUNT(*) FROM `default`.`airports_extended`").show()
+spark.sql("SELECT * FROM `default`.`airports_extended` LIMIT 10").take(5)
+spark.sql("SELECT coordinates FROM `default`.`airports_extended`").show()
+
+
+
+
     
 #spark.stop()
 
